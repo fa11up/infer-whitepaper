@@ -68,7 +68,7 @@ jobs:
 
           resp=$(curl -sS -X POST https://api.pinata.cloud/pinning/pinFileToIPFS \
             -H "Authorization: Bearer $JWT" \
-            -F "file=@site/index.html;filename=site/index.html" \
+            -F "file=@site/index.html;filename=index.html" \
             -F 'pinataOptions={"cidVersion":1,"wrapWithDirectory":false}' \
             -F "pinataMetadata={\"name\":\"infer-whitepaper-${GITHUB_SHA::7}\"}")
           echo "$resp"
@@ -87,6 +87,26 @@ jobs:
             exit 1
           fi
           echo "cid=$cid" >> "$GITHUB_OUTPUT"
+
+      - name: Verify the pinned CID serves the paper
+        run: |
+          cid="${{ steps.pin.outputs.cid }}"
+          echo "verifying ipfs://$cid resolves to the paper at its root"
+          ok=""
+          for gw in "https://ipfs.io/ipfs" "https://dweb.link/ipfs" "https://gateway.pinata.cloud/ipfs"; do
+            code=$(curl -sL --max-time 60 -o /tmp/fetched.html -w '%{http_code}' "$gw/$cid/" || echo 000)
+            echo "  $gw -> HTTP $code"
+            if [ "$code" = "200" ] && grep -q "<title>INFER" /tmp/fetched.html; then
+              bytes=$(wc -c < /tmp/fetched.html | tr -d ' ')
+              echo "  served $bytes bytes with the expected <title>"
+              ok=1; break
+            fi
+          done
+          if [ -z "$ok" ]; then
+            echo "::warning::Could not confirm the CID through a public gateway (they rate-limit heavily). Check https://ipfs.io/ipfs/$cid/ in a browser before updating ENS - it must render the paper, not a directory listing."
+          else
+            echo "confirmed: the CID serves the paper directly at its root"
+          fi
 
       - name: Summary
         run: |
