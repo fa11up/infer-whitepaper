@@ -1,0 +1,76 @@
+name: Pin to IPFS
+
+# Pins the paper on every push to main and prints the CID in the run summary.
+# Updating the ENS contenthash stays manual on purpose: automating it would put
+# a wallet key in CI, and the wallet controlling miyagod.eth is not a key that
+# belongs in a GitHub secret.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  pin:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage the site
+        run: |
+          mkdir -p site
+          cp index.html site/
+          echo "staged:"; ls -la site
+
+      - name: Sanity-check the page
+        run: |
+          test -s site/index.html || { echo "index.html missing or empty"; exit 1; }
+          grep -q "<title>" site/index.html || { echo "no <title>"; exit 1; }
+          bytes=$(wc -c < site/index.html)
+          echo "index.html is $bytes bytes"
+          [ "$bytes" -gt 50000 ] || { echo "suspiciously small — refusing to pin"; exit 1; }
+
+      - name: Pin to IPFS via Pinata
+        id: pin
+        env:
+          PINATA_JWT: ${{ secrets.PINATA_JWT }}
+        run: |
+          if [ -z "$PINATA_JWT" ]; then
+            echo "::error::PINATA_JWT secret is not set. Add it in Settings → Secrets → Actions."
+            exit 1
+          fi
+          resp=$(curl -sS -X POST https://api.pinata.cloud/pinning/pinFileToIPFS \
+            -H "Authorization: Bearer $PINATA_JWT" \
+            -F "file=@site/index.html;filename=site/index.html" \
+            -F 'pinataOptions={"cidVersion":1,"wrapWithDirectory":false}' \
+            -F "pinataMetadata={\"name\":\"infer-whitepaper-${GITHUB_SHA::7}\"}")
+          echo "$resp"
+          cid=$(printf '%s' "$resp" | python3 -c "import json,sys; print(json.load(sys.stdin).get('IpfsHash',''))")
+          [ -n "$cid" ] || { echo "::error::no CID returned"; exit 1; }
+          echo "cid=$cid" >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        run: |
+          cid="${{ steps.pin.outputs.cid }}"
+          {
+            echo "## Pinned to IPFS"
+            echo
+            echo '```'
+            echo "$cid"
+            echo '```'
+            echo
+            echo "- Gateway: https://ipfs.io/ipfs/$cid"
+            echo "- Pinata:  https://gateway.pinata.cloud/ipfs/$cid"
+            echo
+            echo "### To publish"
+            echo "Set the \`contenthash\` of \`infer.miyagod.eth\` to:"
+            echo
+            echo '```'
+            echo "ipfs://$cid"
+            echo '```'
+            echo
+            echo "at [app.ens.domains](https://app.ens.domains). Until then, the ENS name still"
+            echo "serves the previous CID."
+          } >> "$GITHUB_STEP_SUMMARY"
