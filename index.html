@@ -3190,6 +3190,21 @@ claude mix   0.1% input / 99.1% cached / 0.8% output
     var host = row.querySelector('.dthread-mount');
     if (host.dataset.mounted) return;        // already alive - never remount
     host.dataset.mounted = '1';
+
+    /* giscus derives its CSP from the origin it is handed, and a file:// page
+       has the origin "null", which no frame-ancestors list can match. Say so
+       rather than leaving a frame the browser has silently refused. */
+    if (location.protocol !== 'http:' && location.protocol !== 'https:') {
+      host.innerHTML = '<div class="dthread-loading">' +
+        'Comments need this page served over http(s) &mdash; a <code>file://</code> page ' +
+        'cannot embed giscus. Serve the folder with <code>python3 -m http.server</code>, ' +
+        'or read it at <a href="https://infer.miyagod.eth.limo" target="_blank" rel="noopener">infer.miyagod.eth.limo</a>.' +
+        '<br><br><a href="https://github.com/' + REPO + '/discussions?discussions_q=' +
+        encodeURIComponent(row.dataset.term) + '" target="_blank" rel="noopener">Open this thread on GitHub</a>' +
+        '</div>';
+      return;
+    }
+
     host.innerHTML = '<div class="dthread-loading">loading thread\u2026</div>';
 
     var fr = document.createElement('iframe');
