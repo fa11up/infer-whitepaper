@@ -70,7 +70,7 @@ jobs:
             -H "Authorization: Bearer $JWT" \
             -F "file=@site/index.html;filename=index.html" \
             -F 'pinataOptions={"cidVersion":1,"wrapWithDirectory":true}' \
-            -F "pinataMetadata={\"name\":\"infer-whitepaper-${GITHUB_SHA::7}\"}")
+            -F "pinataMetadata={\"name\":\"index.html\",\"keyvalues\":{\"commit\":\"${GITHUB_SHA::7}\"}}")
           echo "$resp"
 
           cid=$(printf '%s' "$resp" | grep -o '"IpfsHash":"[^"]*"' | head -1 | cut -d'"' -f4)
@@ -102,7 +102,14 @@ jobs:
           for gw in "https://ipfs.io/ipfs" "https://dweb.link/ipfs" "https://w3s.link/ipfs" "https://flk-ipfs.xyz/ipfs" "https://ipfs.eth.aragon.network/ipfs"; do
             code=$(curl -sL --max-time 60 -o /tmp/fetched.html -w '%{http_code}' "$gw/$cid/" || echo 000)
             echo "  $gw -> HTTP $code"
-            if [ "$code" = "200" ] && grep -q "<title>INFER" /tmp/fetched.html; then
+            [ "$code" = "200" ] || continue
+            # A directory listing means the wrapper has no index.html at its
+            # root, so an ENS contenthash would show a file index, not the paper.
+            if grep -qi "A directory of content-addressed files\|Index of" /tmp/fetched.html; then
+              echo "::error::$gw served a DIRECTORY LISTING for this CID. The wrapped directory does not contain index.html at its root, so ENS would show a file index instead of the paper."
+              exit 1
+            fi
+            if grep -q "<title>INFER" /tmp/fetched.html; then
               bytes=$(wc -c < /tmp/fetched.html | tr -d ' ')
               echo "  served $bytes bytes with the expected <title>"
               ok=1; break
