@@ -69,7 +69,7 @@ jobs:
           resp=$(curl -sS -X POST https://api.pinata.cloud/pinning/pinFileToIPFS \
             -H "Authorization: Bearer $JWT" \
             -F "file=@site/index.html;filename=index.html" \
-            -F 'pinataOptions={"cidVersion":1,"wrapWithDirectory":false}' \
+            -F 'pinataOptions={"cidVersion":1,"wrapWithDirectory":true}' \
             -F "pinataMetadata={\"name\":\"infer-whitepaper-${GITHUB_SHA::7}\"}")
           echo "$resp"
 
@@ -86,6 +86,12 @@ jobs:
             esac
             exit 1
           fi
+          mime=$(printf '%s' "$resp" | grep -o '"MimeType":"[^"]*"' | head -1 | cut -d'"' -f4)
+          if [ "$mime" != "directory" ]; then
+            echo "::error::Expected a directory-wrapped pin so index.html sits at the root (ENS contenthash cannot carry a path), but Pinata reported MimeType=$mime."
+            exit 1
+          fi
+          echo "shape: directory with index.html at its root - correct for an ENS contenthash"
           echo "cid=$cid" >> "$GITHUB_OUTPUT"
 
       - name: Verify the pinned CID serves the paper
@@ -93,7 +99,7 @@ jobs:
           cid="${{ steps.pin.outputs.cid }}"
           echo "verifying ipfs://$cid resolves to the paper at its root"
           ok=""
-          for gw in "https://ipfs.io/ipfs" "https://dweb.link/ipfs" "https://gateway.pinata.cloud/ipfs"; do
+          for gw in "https://ipfs.io/ipfs" "https://dweb.link/ipfs" "https://w3s.link/ipfs" "https://flk-ipfs.xyz/ipfs" "https://ipfs.eth.aragon.network/ipfs"; do
             code=$(curl -sL --max-time 60 -o /tmp/fetched.html -w '%{http_code}' "$gw/$cid/" || echo 000)
             echo "  $gw -> HTTP $code"
             if [ "$code" = "200" ] && grep -q "<title>INFER" /tmp/fetched.html; then
