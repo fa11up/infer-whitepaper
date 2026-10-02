@@ -41,14 +41,45 @@ jobs:
             echo "::error::PINATA_JWT secret is not set. Add it in Settings → Secrets → Actions."
             exit 1
           fi
+
+          # Shape-check the credential before spending a request on it. Only
+          # structural facts are printed — never any part of the token itself.
+          segs=$(printf '%s' "$PINATA_JWT" | awk -F. '{print NF}')
+          len=$(printf '%s' "$PINATA_JWT" | wc -c | tr -d ' ')
+          echo "credential: $segs dot-separated segments, $len characters"
+          if [ "$segs" -ne 3 ]; then
+            echo "::error::PINATA_JWT is not a JWT ($segs segments, expected 3). Pinata shows an API Key, an API Secret and a JWT — this needs the JWT, the long value beginning 'eyJhbGciOi'. Re-set it with: gh secret set PINATA_JWT --repo ${GITHUB_REPOSITORY}"
+            exit 1
+          fi
+          case "$PINATA_JWT" in
+            eyJ*) ;;
+            *) echo "::error::PINATA_JWT has 3 segments but does not begin 'eyJ', so its header is not a JSON web token header. Check for a stray 'Bearer ' prefix, surrounding quotes, or a truncated paste."; exit 1 ;;
+          esac
+          case "$PINATA_JWT" in
+            *[!A-Za-z0-9._-]*) echo "::error::PINATA_JWT contains a character that is not valid in a JWT (likely a space, newline or quote picked up during paste). Re-set it with: gh secret set PINATA_JWT --repo ${GITHUB_REPOSITORY}"; exit 1 ;;
+          esac
           resp=$(curl -sS -X POST https://api.pinata.cloud/pinning/pinFileToIPFS \
             -H "Authorization: Bearer $PINATA_JWT" \
             -F "file=@site/index.html;filename=site/index.html" \
             -F 'pinataOptions={"cidVersion":1,"wrapWithDirectory":false}' \
             -F "pinataMetadata={\"name\":\"infer-whitepaper-${GITHUB_SHA::7}\"}")
           echo "$resp"
-          cid=$(printf '%s' "$resp" | python3 -c "import json,sys; print(json.load(sys.stdin).get('IpfsHash',''))")
-          [ -n "$cid" ] || { echo "::error::no CID returned"; exit 1; }
+          cid=$(printf '%s' "$resp" | python3 -c "import json,sys
+try: print(json.load(sys.stdin).get('IpfsHash',''))
+except Exception: print('')")
+          if [ -z "$cid" ]; then
+            reason=$(printf '%s' "$resp" | python3 -c "import json,sys
+try:
+    e=json.load(sys.stdin).get('error')
+    print(e.get('reason','') if isinstance(e,dict) else (e or ''))
+except Exception: print('')")
+            case "$reason" in
+              INVALID_CREDENTIALS) echo "::error::Pinata rejected the credential (INVALID_CREDENTIALS). The JWT is wrong, revoked, or is actually the API Key rather than the JWT." ;;
+              NO_SCOPES_FOUND|*SCOPE*) echo "::error::Pinata accepted the key but it lacks the required scope. The key needs the pinFileToIPFS endpoint enabled." ;;
+              *) echo "::error::Pinata returned no CID. Response above." ;;
+            esac
+            exit 1
+          fi
           echo "cid=$cid" >> "$GITHUB_OUTPUT"
 
       - name: Summary
