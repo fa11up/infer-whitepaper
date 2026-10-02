@@ -44,23 +44,30 @@ jobs:
 
           # Shape-check the credential before spending a request on it. Only
           # structural facts are printed - never any part of the token itself.
-          segs=$(printf '%s' "$PINATA_JWT" | awk -F. '{print NF}')
-          len=$(printf '%s' "$PINATA_JWT" | wc -c | tr -d ' ')
+          # Whitespace is the commonest paste artifact and is never valid in a
+          # JWT, so strip it rather than making a human re-paste a 680-char token.
+          JWT=$(printf '%s' "$PINATA_JWT" | tr -d '[:space:]')
+          raw=$(printf '%s' "$PINATA_JWT" | wc -c | tr -d ' ')
+          len=$(printf '%s' "$JWT" | wc -c | tr -d ' ')
+          segs=$(printf '%s' "$JWT" | awk -F. '{print NF}')
+          if [ "$raw" -ne "$len" ]; then
+            echo "note: stripped $((raw - len)) whitespace character(s) from the credential"
+          fi
           echo "credential: $segs dot-separated segments, $len characters"
           if [ "$segs" -ne 3 ]; then
             echo "::error::PINATA_JWT is not a JWT ($segs segments, expected 3). Pinata shows an API Key, an API Secret and a JWT - this needs the JWT, the long value beginning eyJhbGciOi."
             exit 1
           fi
-          case "$PINATA_JWT" in
+          case "$JWT" in
             eyJ*) ;;
             *) echo "::error::PINATA_JWT has 3 segments but does not begin eyJ. Check for a stray Bearer prefix, surrounding quotes, or a truncated paste."; exit 1 ;;
           esac
-          case "$PINATA_JWT" in
+          case "$JWT" in
             *[!A-Za-z0-9._-]*) echo "::error::PINATA_JWT contains a character not valid in a JWT - likely a space, newline or quote picked up during paste."; exit 1 ;;
           esac
 
           resp=$(curl -sS -X POST https://api.pinata.cloud/pinning/pinFileToIPFS \
-            -H "Authorization: Bearer $PINATA_JWT" \
+            -H "Authorization: Bearer $JWT" \
             -F "file=@site/index.html;filename=site/index.html" \
             -F 'pinataOptions={"cidVersion":1,"wrapWithDirectory":false}' \
             -F "pinataMetadata={\"name\":\"infer-whitepaper-${GITHUB_SHA::7}\"}")
