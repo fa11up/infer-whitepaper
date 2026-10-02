@@ -1176,56 +1176,165 @@ thead th  { padding: 9px 12px; }
 @media print { #livebar { display: none !important; } .live { border-bottom: none !important; } }
 
 
+
 /* ══════════════════════════════════════════════════════════════════
-   PER-SECTION DISCUSSION
-   Threads live in GitHub Discussions via giscus. Hidden in print, and
-   the page is fully readable if giscus never loads.
+   DISCUSSION PANEL — right-hand column
+   Threads mount once and are never unmounted, only hidden, so anything
+   typed into a giscus box survives opening another thread, scrolling the
+   paper, or closing and reopening the panel. Hidden entirely in print.
 ══════════════════════════════════════════════════════════════════ */
-.discuss { display: none; }
+#dpanel, #dtoggle, #dscrim { display: none; }
 
 @media screen {
-  .discuss {
-    display: block;
-    margin: 40px 0 8px;
-    padding-top: 18px;
-    border-top: 1px solid var(--border);
-  }
 
-  .discuss-btn {
+  #dtoggle {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    position: fixed;
+    right: 20px;
+    bottom: 76px;
+    z-index: 120;
     font-family: var(--mono);
     font-size: 10px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--muted);
-    background: none;
+    background: rgba(255,255,255,0.94);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: 1px solid var(--border);
-    border-radius: 3px;
-    padding: 7px 13px;
+    border-radius: 4px;
+    padding: 10px 13px;
     cursor: pointer;
-    transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+    transition: color 0.12s ease, border-color 0.12s ease;
   }
-  .discuss-btn:hover,
-  .discuss-btn[aria-expanded="true"] {
+  #dtoggle:hover, body.dopen #dtoggle { color: var(--accent); border-color: var(--accent); }
+  #dtoggle .dt-count {
+    font-size: 9px;
     color: var(--accent);
-    border-color: var(--accent);
-    background: #f2f7f2;
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    padding: 1px 6px;
   }
-  .discuss-btn::before { content: "\201C\201D"; margin-right: 7px; opacity: 0.55; letter-spacing: 0; }
+  #dtoggle .dt-count:empty { display: none; }
 
-  .discuss-mount { margin-top: 16px; }
-  .discuss-mount:empty { margin-top: 0; }
+  /* ── the column ──────────────────────────────────────────────── */
+  #dpanel {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(400px, 92vw);
+    background: #ffffff;
+    border-left: 1px solid var(--border);
+    box-shadow: -2px 0 14px rgba(0,0,0,0.07);
+    z-index: 118;
+    transform: translateX(101%);
+    transition: transform 0.22s ease;
+  }
+  body.dopen #dpanel { transform: translateX(0); }
 
-  .discuss-note {
+  #dpanel-head {
+    flex: 0 0 auto;
+    padding: 16px 18px 13px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  #dpanel-head h2 {
     font-family: var(--mono);
     font-size: 10px;
-    color: var(--light);
-    line-height: 1.6;
-    padding: 10px 0 2px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0;
   }
-  .discuss-note a { color: var(--accent); }
+  #dpanel-close {
+    background: none; border: none; cursor: pointer;
+    font-family: var(--mono); font-size: 16px; line-height: 1;
+    color: var(--light); padding: 0 2px;
+  }
+  #dpanel-close:hover { color: var(--text); }
+
+  #dpanel-note {
+    flex: 0 0 auto;
+    padding: 10px 18px;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    line-height: 1.6;
+    color: var(--light);
+    border-bottom: 1px solid var(--border);
+    background: var(--code-bg);
+  }
+
+  #dpanel-list { flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; }
+
+  .dthread { border-bottom: 1px solid var(--border); }
+
+  .dthread-btn {
+    width: 100%;
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 11px 18px;
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--text);
+    transition: background 0.12s ease;
+  }
+  .dthread-btn:hover { background: #f6f9f6; }
+  .dthread.open > .dthread-btn { background: #f2f7f2; color: var(--accent); font-weight: 500; }
+  .dthread.here > .dthread-btn { box-shadow: inset 3px 0 0 var(--accent); }
+
+  .dthread-n {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--light);
+    min-width: 26px;
+    flex-shrink: 0;
+  }
+  .dthread.open > .dthread-btn .dthread-n,
+  .dthread.here > .dthread-btn .dthread-n { color: var(--accent); }
+  .dthread-t { flex: 1 1 auto; line-height: 1.4; }
+  .dthread-caret { font-family: var(--mono); font-size: 10px; color: var(--light); flex-shrink: 0; }
+
+  /* Mounted but collapsed: the iframe stays alive so drafts survive. */
+  .dthread-mount { display: none; padding: 4px 14px 16px; }
+  .dthread.open > .dthread-mount { display: block; }
+
+  .dthread-loading { font-family: var(--mono); font-size: 10px; color: var(--light); padding: 8px 4px; }
+
+  #dscrim {
+    display: block;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.14);
+    z-index: 117;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+  }
+  body.dopen #dscrim { opacity: 1; pointer-events: auto; }
+
+  /* Wide enough for a true column: dock it and inset the page instead of
+     covering it, so the paper and the discussion are readable together. */
+  @media (min-width: 1560px) {
+    body.dopen #dscrim { opacity: 0; pointer-events: none; }
+    #dpanel { box-shadow: none; }
+  }
 }
 
-@media print { .discuss { display: none !important; } }
+@media print { #dpanel, #dtoggle, #dscrim { display: none !important; } }
 
 </style>
 </head>
@@ -1420,10 +1529,6 @@ thead th  { padding: 9px 12px; }
 
 <!-- ═══ 2. BACKGROUND ═══ -->
 
-<div class="discuss" data-term="infer/section-1" data-label="1. Introduction">
-  <button class="discuss-btn" type="button" aria-expanded="false">Discuss &ldquo;1. Introduction&rdquo;</button>
-  <div class="discuss-mount"></div>
-</div>
 
 <h1 class="section" id="2-background">2. Background</h1>
 
@@ -1572,10 +1677,6 @@ thead th  { padding: 9px 12px; }
 
 <!-- ═══ 3. DESIGN PRINCIPLES ═══ -->
 
-<div class="discuss" data-term="infer/section-2" data-label="2. Background">
-  <button class="discuss-btn" type="button" aria-expanded="false">Discuss &ldquo;2. Background&rdquo;</button>
-  <div class="discuss-mount"></div>
-</div>
 
 <h1 class="section" id="3-design-principles">3. Design Principles</h1>
 
@@ -1614,10 +1715,6 @@ thead th  { padding: 9px 12px; }
 <!-- ═══ 4. PROTOCOL ARCHITECTURE ═══ -->
 <div style="break-before:page; page-break-before:always;"></div>
 
-<div class="discuss" data-term="infer/section-3" data-label="3. Design Principles">
-  <button class="discuss-btn" type="button" aria-expanded="false">Discuss &ldquo;3. Design Principles&rdquo;</button>
-  <div class="discuss-mount"></div>
-</div>
 
 <h1 class="section" id="4-protocol-architecture">4. Protocol Architecture</h1>
 
@@ -1827,10 +1924,6 @@ NHI thresholds:
 
 <!-- ═══ 5. ECONOMIC MODEL ═══ -->
 
-<div class="discuss" data-term="infer/section-4" data-label="4. Protocol Architecture">
-  <button class="discuss-btn" type="button" aria-expanded="false">Discuss &ldquo;4. Protocol Architecture&rdquo;</button>
-  <div class="discuss-mount"></div>
-</div>
 
 <h1 class="section" style="break-before:page; page-break-before:always;" id="5-economic-model">5. Economic Model</h1>
 
@@ -2060,10 +2153,6 @@ NHI thresholds:
 
 <!-- ═══ SECTION 6 ═══ -->
 
-<div class="discuss" data-term="infer/section-5" data-label="5. Economic Model">
-  <button class="discuss-btn" type="button" aria-expanded="false">Discuss &ldquo;5. Economic Model&rdquo;</button>
-  <div class="discuss-mount"></div>
-</div>
 
 <h1 class="section" style="break-before:page; page-break-before:always;" id="6-monetary-policy-and-load-management">6. Monetary Policy &amp; Load Management</h1>
 
@@ -2249,10 +2338,6 @@ builder,    $200 ChatGPT Pro               ~11x</div>
 
 <!-- ═══ 6. BOOTSTRAPPING ═══ -->
 
-<div class="discuss" data-term="infer/section-6" data-label="6. Monetary Policy &amp; Load Management">
-  <button class="discuss-btn" type="button" aria-expanded="false">Discuss &ldquo;6. Monetary Policy &amp; Load Management&rdquo;</button>
-  <div class="discuss-mount"></div>
-</div>
 
 <h1 class="section" style="break-before:page; page-break-before:always;" id="7-bootstrapping-sequence">7. Bootstrapping Sequence</h1>
 
@@ -2335,10 +2420,6 @@ builder,    $200 ChatGPT Pro               ~11x</div>
 <!-- ═══ 7. SECURITY ═══ -->
 <div style="break-before:page; page-break-before:always;"></div>
 
-<div class="discuss" data-term="infer/section-7" data-label="7. Bootstrapping Sequence">
-  <button class="discuss-btn" type="button" aria-expanded="false">Discuss &ldquo;7. Bootstrapping Sequence&rdquo;</button>
-  <div class="discuss-mount"></div>
-</div>
 
 <h1 class="section" id="8-security-considerations">8. Security Considerations</h1>
 
@@ -2402,10 +2483,6 @@ builder,    $200 ChatGPT Pro               ~11x</div>
 
 <!-- ═══ 8. FUTURE CONSIDERATIONS ═══ -->
 
-<div class="discuss" data-term="infer/section-8" data-label="8. Security Considerations">
-  <button class="discuss-btn" type="button" aria-expanded="false">Discuss &ldquo;8. Security Considerations&rdquo;</button>
-  <div class="discuss-mount"></div>
-</div>
 
 <h1 class="section" style="break-before:page; page-break-before:always;" id="9-future-considerations">9. Future Considerations</h1>
 
@@ -2506,10 +2583,6 @@ builder,    $200 ChatGPT Pro               ~11x</div>
 
 <!-- ═══ 9. CONCLUSION ═══ -->
 
-<div class="discuss" data-term="infer/section-9" data-label="9. Future Considerations">
-  <button class="discuss-btn" type="button" aria-expanded="false">Discuss &ldquo;9. Future Considerations&rdquo;</button>
-  <div class="discuss-mount"></div>
-</div>
 
 <h1 class="section" id="10-conclusion">10. Conclusion</h1>
 
@@ -2528,10 +2601,6 @@ builder,    $200 ChatGPT Pro               ~11x</div>
 <!-- ═══ APPENDIX A ═══ -->
 <div style="break-before:page; page-break-before:always;"></div>
 
-<div class="discuss" data-term="infer/section-10" data-label="10. Conclusion">
-  <button class="discuss-btn" type="button" aria-expanded="false">Discuss &ldquo;10. Conclusion&rdquo;</button>
-  <div class="discuss-mount"></div>
-</div>
 
 <h1 class="section" id="appendix-a-glossary">Appendix A — Glossary</h1>
 
@@ -2556,10 +2625,6 @@ builder,    $200 ChatGPT Pro               ~11x</div>
 
 <!-- ═══ APPENDIX B ═══ -->
 
-<div class="discuss" data-term="infer/appendix-a" data-label="Appendix A — Glossary">
-  <button class="discuss-btn" type="button" aria-expanded="false">Discuss &ldquo;Appendix A — Glossary&rdquo;</button>
-  <div class="discuss-mount"></div>
-</div>
 
 <h1 class="section" id="appendix-b-open-questions">Appendix B — Open Questions</h1>
 
@@ -2579,10 +2644,6 @@ builder,    $200 ChatGPT Pro               ~11x</div>
 <!-- ═══ APPENDIX C ═══ -->
 <div style="break-before:page; page-break-before:always;"></div>
 
-<div class="discuss" data-term="infer/appendix-b" data-label="Appendix B — Open Questions">
-  <button class="discuss-btn" type="button" aria-expanded="false">Discuss &ldquo;Appendix B — Open Questions&rdquo;</button>
-  <div class="discuss-mount"></div>
-</div>
 
 <h1 class="section" id="appendix-c-measurement-method">Appendix C — Measurement Method</h1>
 
@@ -2645,11 +2706,6 @@ claude mix   0.1% input / 99.1% cached / 0.8% output
   The build-node figure is a regression estimate, not a direct observation, and it inherits whatever bias sits in treating a build <em>job</em> as one attempt; if a job averages two attempts the per-attempt figure falls toward 250,000 and every build cost falls with it. The workflow census covers contracts and frontend stages but not the site stage, making every per-workflow figure a slight under-count. The paid/unpaid split rests on <code>paidBy</code> over 55 sampled oracle requests and 58 non-oracle jobs in a single day's window — a clean separation in that sample, but not a census, and the daily paid-demand figures are one day's trade. The failure rate is a census, but it is sensitive to how the 0x8a3b860f burst is treated: including it the network-wide figure is 19%, excluding it 58%. Subscription tiers are inferred, as <a class="xref" href="#c-5-inferring-subscription-tiers">C.5</a> sets out. Token prices move. The IMD-denominated dollar figures recompute from a live price feed whenever this page is opened online, and fall back to the published reference of $6.00 when it is not reachable; the model prices behind the inference costs do not update and are the rates published on 2 October 2026. The dollar conversions remain the least durable numbers here, and the token counts the most.
 </div>
 
-
-<div class="discuss" data-term="infer/appendix-c" data-label="Appendix C — Measurement Method">
-  <button class="discuss-btn" type="button" aria-expanded="false">Discuss &ldquo;Appendix C — Measurement Method&rdquo;</button>
-  <div class="discuss-mount"></div>
-</div>
 
 <div class="disclaimer">
   INFER is a concept paper. Nothing herein constitutes financial advice, investment advice, legal advice, or a solicitation to participate in any financial product. All protocol mechanics are theoretical and subject to change. INFER has not been reviewed for regulatory compliance in any jurisdiction. Independent legal review is required before any deployment. Released into the public domain — fork freely.
@@ -3024,86 +3080,204 @@ claude mix   0.1% input / 99.1% cached / 0.8% output
 </script>
 
 
+
+<button id="dtoggle" type="button" aria-expanded="false" aria-controls="dpanel">Discussion <span class="dt-count"></span></button>
+<div id="dscrim"></div>
+<aside id="dpanel" aria-label="Discussion">
+  <div id="dpanel-head">
+    <h2>Discussion</h2>
+    <button id="dpanel-close" type="button" aria-label="Close discussion">&times;</button>
+  </div>
+  <div id="dpanel-note">One thread per section. Open as many as you like &mdash; a thread you have opened stays loaded, so anything you have typed is still there when you come back.</div>
+  <div id="dpanel-list"></div>
+</aside>
+
 <script>
-/* Per-section discussion. One giscus instance at a time: opening a section
-   unmounts any other, so the page never carries thirteen iframes. If giscus
-   is unreachable the button simply offers the GitHub thread directly. */
+/* Discussion panel. Threads are mounted on first open and then never
+   unmounted - collapsing only sets display:none on the wrapper, which does
+   not reload an iframe. So a half-written comment survives opening another
+   thread, scrolling the paper, closing the panel, and coming back. */
 (function () {
   var REPO = 'fa11up/comp-protocol';
   var REPO_ID = 'R_kgDOU35RqQ';
   var CATEGORY = 'General';
   var CATEGORY_ID = 'DIC_kwDOU35Rqc4DG2CG';
 
-  var blocks = Array.prototype.slice.call(document.querySelectorAll('.discuss'));
-  if (!blocks.length) return;
-  var open = null;
+  var SECTIONS = [
+    ['1',  '1-introduction',                        'Introduction'],
+    ['2',  '2-background',                          'Background'],
+    ['3',  '3-design-principles',                   'Design Principles'],
+    ['4',  '4-protocol-architecture',               'Protocol Architecture'],
+    ['5',  '5-economic-model',                      'Economic Model'],
+    ['6',  '6-monetary-policy-and-load-management', 'Monetary Policy &amp; Load Management'],
+    ['7',  '7-bootstrapping-sequence',              'Bootstrapping Sequence'],
+    ['8',  '8-security-considerations',             'Security Considerations'],
+    ['9',  '9-future-considerations',               'Future Considerations'],
+    ['10', '10-conclusion',                         'Conclusion'],
+    ['A',  'appendix-a-glossary',                   'Glossary'],
+    ['B',  'appendix-b-open-questions',             'Open Questions'],
+    ['C',  'appendix-c-measurement-method',         'Measurement Method']
+  ];
+  var TERM = {'1':'infer/section-1','2':'infer/section-2','3':'infer/section-3',
+    '4':'infer/section-4','5':'infer/section-5','6':'infer/section-6','7':'infer/section-7',
+    '8':'infer/section-8','9':'infer/section-9','10':'infer/section-10',
+    'A':'infer/appendix-a','B':'infer/appendix-b','C':'infer/appendix-c'};
 
-  function close(b) {
-    if (!b) return;
-    b.querySelector('.discuss-mount').innerHTML = '';
-    var btn = b.querySelector('.discuss-btn');
-    btn.setAttribute('aria-expanded', 'false');
-    btn.innerHTML = btn.dataset.closed;
-    if (open === b) open = null;
+  /* After signing in, giscus returns to the page with ?giscus=<session>.
+     Capture it, pass it to every widget, and tidy the address bar. */
+  var SESSION = '';
+  try {
+    var sp = new URLSearchParams(location.search);
+    if (sp.get('giscus')) {
+      SESSION = sp.get('giscus');
+      sp.delete('giscus');
+      var clean = location.pathname + (sp.toString() ? '?' + sp.toString() : '') + location.hash;
+      history.replaceState(null, '', clean);
+    }
+  } catch (e) {}
+
+  var toggle = document.getElementById('dtoggle');
+  var panel  = document.getElementById('dpanel');
+  var scrim  = document.getElementById('dscrim');
+  var list   = document.getElementById('dpanel-list');
+  if (!toggle || !panel || !list) return;
+
+  // ── build the thread list ───────────────────────────────────────
+  SECTIONS.forEach(function (sec) {
+    var n = sec[0], id = sec[1], title = sec[2];
+    var row = document.createElement('div');
+    row.className = 'dthread';
+    row.dataset.sec = id;
+    row.dataset.term = TERM[n];
+    row.innerHTML =
+      '<button class="dthread-btn" type="button" aria-expanded="false">' +
+        '<span class="dthread-n">' + n + '</span>' +
+        '<span class="dthread-t">' + title + '</span>' +
+        '<span class="dthread-caret">+</span>' +
+      '</button>' +
+      '<div class="dthread-mount"></div>';
+    list.appendChild(row);
+  });
+
+  var rows = Array.prototype.slice.call(list.querySelectorAll('.dthread'));
+
+  /* Build the giscus widget iframe directly rather than via client.js:
+     client.js is written for a single instance per page and only ever yields
+     one iframe, which is incompatible with keeping thirteen threads alive. */
+  function widgetUrl(term) {
+    var q = {
+      origin: location.href,
+      session: SESSION,
+      theme: 'light',
+      reactionsEnabled: '1',
+      emitMetadata: '0',
+      inputPosition: 'top',
+      repo: REPO,
+      repoId: REPO_ID,
+      category: CATEGORY,
+      categoryId: CATEGORY_ID,
+      strict: '0',
+      description: 'INFER \u2014 Inference-Backed Endogenous Financial Reserve',
+      backLink: location.href,
+      term: term
+    };
+    return 'https://giscus.app/en/widget?' + Object.keys(q).map(function (k) {
+      return encodeURIComponent(k) + '=' + encodeURIComponent(q[k]);
+    }).join('&');
   }
 
-  function mount(b) {
-    var host = b.querySelector('.discuss-mount');
-    var btn = b.querySelector('.discuss-btn');
-    host.innerHTML = '<div class="discuss-note">loading thread…</div>';
+  function mount(row) {
+    var host = row.querySelector('.dthread-mount');
+    if (host.dataset.mounted) return;        // already alive - never remount
+    host.dataset.mounted = '1';
+    host.innerHTML = '<div class="dthread-loading">loading thread\u2026</div>';
 
-    var sc = document.createElement('script');
-    sc.src = 'https://giscus.app/client.js';
-    sc.setAttribute('data-repo', REPO);
-    sc.setAttribute('data-repo-id', REPO_ID);
-    sc.setAttribute('data-category', CATEGORY);
-    sc.setAttribute('data-category-id', CATEGORY_ID);
-    sc.setAttribute('data-mapping', 'specific');
-    sc.setAttribute('data-term', b.dataset.term);
-    sc.setAttribute('data-strict', '0');
-    sc.setAttribute('data-reactions-enabled', '1');
-    sc.setAttribute('data-emit-metadata', '0');
-    sc.setAttribute('data-input-position', 'top');
-    sc.setAttribute('data-theme', 'light');
-    sc.setAttribute('data-lang', 'en');
-    sc.setAttribute('data-loading', 'lazy');
-    sc.crossOrigin = 'anonymous';
-    sc.async = true;
-    sc.onerror = function () {
-      host.innerHTML = '<div class="discuss-note">The embedded thread could not load. ' +
-        'Open it on GitHub: <a href="https://github.com/' + REPO +
-        '/discussions?discussions_q=' + encodeURIComponent(b.dataset.term) +
-        '" target="_blank" rel="noopener">' + b.dataset.term + '</a></div>';
-    };
-    sc.onload = function () {
-      var n = host.querySelector('.discuss-note');
-      if (n) n.remove();
-    };
-    host.appendChild(sc);
-
-    var alt = document.createElement('div');
-    alt.className = 'discuss-note';
-    alt.innerHTML = 'Thread: <a href="https://github.com/' + REPO +
-      '/discussions?discussions_q=' + encodeURIComponent(b.dataset.term) +
-      '" target="_blank" rel="noopener">' + b.dataset.term + '</a> \u00b7 ' +
-      'comments are GitHub Discussions on ' + REPO + '.';
-    host.appendChild(alt);
-
-    btn.setAttribute('aria-expanded', 'true');
-    btn.innerHTML = 'Hide discussion';
-    open = b;
+    var fr = document.createElement('iframe');
+    fr.className = 'giscus-frame';
+    fr.title = 'Discussion for ' + row.dataset.term;
+    fr.src = widgetUrl(row.dataset.term);
+    fr.setAttribute('scrolling', 'no');
+    fr.setAttribute('loading', 'lazy');
+    fr.setAttribute('allow', 'clipboard-write');
+    fr.dataset.term = row.dataset.term;
+    fr.style.width = '100%';
+    fr.style.border = '0';
+    fr.style.colorScheme = 'light';
+    fr.style.height = '220px';
+    fr.addEventListener('load', function () {
+      var l = host.querySelector('.dthread-loading');
+      if (l) l.remove();
+    });
+    host.appendChild(fr);
   }
 
-  blocks.forEach(function (b) {
-    var btn = b.querySelector('.discuss-btn');
-    btn.dataset.closed = btn.innerHTML;
-    btn.addEventListener('click', function () {
-      if (open === b) { close(b); return; }
-      close(open);
-      mount(b);
-      btn.scrollIntoView({block: 'nearest'});
+  /* giscus asks its host to resize it; each frame is matched by source window
+     so thirteen open threads do not fight over one height. */
+  window.addEventListener('message', function (e) {
+    if (e.origin !== 'https://giscus.app') return;
+    var d = e.data;
+    if (!d || typeof d !== 'object' || !d.giscus || d.giscus.resizeHeight === undefined) return;
+    var frames = list.querySelectorAll('iframe.giscus-frame');
+    for (var i = 0; i < frames.length; i++) {
+      if (frames[i].contentWindow === e.source) {
+        frames[i].style.height = d.giscus.resizeHeight + 'px';
+        return;
+      }
+    }
+  });
+
+  function setOpen(row, open) {
+    row.classList.toggle('open', open);
+    var btn = row.querySelector('.dthread-btn');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    row.querySelector('.dthread-caret').textContent = open ? '−' : '+';
+    if (open) mount(row);
+    updateCount();
+  }
+
+  function updateCount() {
+    var n = rows.filter(function (r) { return r.classList.contains('open'); }).length;
+    toggle.querySelector('.dt-count').textContent = n ? String(n) : '';
+  }
+
+  rows.forEach(function (row) {
+    row.querySelector('.dthread-btn').addEventListener('click', function () {
+      setOpen(row, !row.classList.contains('open'));
     });
   });
+
+  // ── panel open/close - never touches thread state ───────────────
+  function setPanel(open) {
+    document.body.classList.toggle('dopen', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  toggle.addEventListener('click', function () {
+    setPanel(!document.body.classList.contains('dopen'));
+  });
+  document.getElementById('dpanel-close').addEventListener('click', function () { setPanel(false); });
+  scrim.addEventListener('click', function () { setPanel(false); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && document.body.classList.contains('dopen')) setPanel(false);
+  });
+
+  // ── mark which section the reader is in, without disturbing anything ──
+  var marks = SECTIONS.map(function (s) { return {id: s[1], el: document.getElementById(s[1])}; })
+                      .filter(function (m) { return m.el; });
+  var ticking = false;
+  function spy() {
+    var y = window.scrollY + 130, cur = marks[0];
+    for (var i = 0; i < marks.length; i++) {
+      if (marks[i].el.offsetTop <= y) cur = marks[i]; else break;
+    }
+    rows.forEach(function (r) { r.classList.toggle('here', cur && r.dataset.sec === cur.id); });
+  }
+  window.addEventListener('scroll', function () {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function () { spy(); ticking = false; });
+  }, {passive: true});
+  spy();
+  updateCount();
 })();
 </script>
 
